@@ -160,26 +160,15 @@
   function bukaBayar(kode) {
     const o = findOrder(kode); if (!o) return; const M = A.metodeAktif();
     if (!M.length) return toast('Belum ada metode pembayaran aktif.', 'warn');
-    const cur = o.id_metode && M.some((m) => m.id_metode === o.id_metode) ? o.id_metode : M[0].id_metode;
-    const perluPin = o.sumber === 'Web', pinOk = !!((A.boot && A.boot.akun) || {}).pin_diatur, lapak = !!o.serah_langsung;
-    const pinBox = !perluPin ? '' : pinOk
-      ? A.fld('PIN konfirmasi', '<input id="by-pin" class="input text-center font-display text-2xl tracking-[.5em] tnum" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="••••">', 'PIN yang kamu atur di Pengaturan → Akun Saya.', 'by-pin')
-      : '<div class="flex gap-3 rounded-2xl bg-warn-bg p-4 text-warn">' + ic('alert', 'size-6 shrink-0') + '<div><p class="font-bold">PIN belum diatur</p><p class="text-sm">Atur PIN konfirmasi dulu di Pengaturan → Akun Saya, baru pesanan online bisa ditandai lunas.</p></div></div>';
+    const cur = o.id_metode && M.some((m) => m.id_metode === o.id_metode) ? o.id_metode : M[0].id_metode, lapak = !!o.serah_langsung;
     const m = modal.open({ title: (lapak ? 'Paid · ' : 'Tandai lunas · ') + o.kode, size: 'center', body: '<div class="grid gap-4 p-5"><div class="flex items-center justify-between rounded-2xl bg-tint p-4"><span class="text-sm font-semibold text-muted">Total tagihan</span><span class="font-display text-2xl font-extrabold text-deep tnum">' + rp(o.total) + '</span></div>' +
       A.fld('Dibayar dengan', '<select id="by-m" class="input">' + M.map((x) => '<option value="' + esc(x.id_metode) + '"' + (x.id_metode === cur ? ' selected' : '') + '>' + esc(x.nama_tampil) + ' · ' + esc(x.tipe) + '</option>').join('') + '</select>', 'Pastikan dana sudah masuk di rekening / e-wallet, atau uang tunai sudah diterima.', 'by-m') +
-      (lapak ? '<p class="rounded-2xl bg-tint p-3 text-sm text-deep">Setelah dikonfirmasi, pesanan langsung <b>Selesai</b>: produk diserahkan ke pembeli di lapak.</p>' : '') + pinBox + '</div>',
-      footer: '<div class="flex gap-3"><button class="btn btn-soft flex-1" data-close>Batal</button><button class="btn btn-primary flex-1" data-ok>' + (perluPin && !pinOk ? 'Atur PIN' : lapak ? 'Paid & Serahkan' : 'Konfirmasi Lunas') + '</button></div>' });
-    const ok = $('[data-ok]', m.footer), pin = $('#by-pin', m.el);
-    const kirim = async () => {
-      if (perluPin && !pinOk) { m.close(); return N.go('#/admin/pengaturan/akun'); }
-      if (pin && !/^\d{4,6}$/.test(pin.value)) { toast('Masukkan PIN 4–6 digit.', 'warn'); return pin.focus(); }
-      const r = await N.busy(ok, 'Menyimpan…', () => api('adminSetPaid', { kode: kode, id_metode: $('#by-m', m.el).value, pin: pin ? pin.value : '' }));
-      if (!r) return;
-      if (r.success) { m.close(); applyOrder(r.data.order); toast(lapak ? o.kode + ' lunas dan diserahkan.' : 'Pesanan ditandai lunas.', 'ok'); }
-      else if (r.code !== 'NET') { toast(r.message, 'bad', 4500); if (pin) { pin.value = ''; pin.focus(); } }
-    };
-    ok.addEventListener('click', kirim);
-    if (pin) { pin.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); kirim(); } }); setTimeout(() => pin.focus(), 60); }
+      (lapak ? '<p class="rounded-2xl bg-tint p-3 text-sm text-deep">Setelah dikonfirmasi, pesanan langsung <b>Selesai</b>: produk diserahkan ke pembeli di lapak.</p>' : '') + '</div>',
+      footer: '<div class="flex gap-3"><button class="btn btn-soft flex-1" data-close>Batal</button><button class="btn btn-primary flex-1" data-ok>' + (lapak ? 'Paid & Serahkan' : 'Konfirmasi Lunas') + '</button></div>' });
+    $('[data-ok]', m.footer).addEventListener('click', async (e) => {
+      const r = await N.busy(e.currentTarget, 'Menyimpan…', () => api('adminSetPaid', { kode: kode, id_metode: $('#by-m', m.el).value }));
+      if (!r) return; if (r.success) { m.close(); applyOrder(r.data.order); toast(lapak ? o.kode + ' lunas dan diserahkan.' : 'Pesanan ditandai lunas.', 'ok'); } else if (r.code !== 'NET') toast(r.message, 'bad', 4000);
+    });
   }
   function bukaBatal(kode) {
     const o = findOrder(kode); if (!o) return; const pre = ['Stok habis', 'Pembeli membatalkan', 'Pembayaran tidak masuk', 'Pesanan ganda'];
