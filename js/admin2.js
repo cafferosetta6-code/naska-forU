@@ -162,7 +162,7 @@
       let el, tab = 'identitas';
       const S = () => A.settings(), val = (k) => esc(S()[k] === undefined ? '' : S()[k]);
       const save = (btn, keys, root) => {
-        const values = {}; keys.forEach((k) => { const i = $('[data-k="' + k + '"]', root); if (i) values[k] = i.dataset.val !== undefined && i.dataset.money ? i.dataset.val : i.value; });
+        const values = {}; keys.forEach((k) => { const i = $('[data-k="' + k + '"]:not([data-act])', root); if (i) values[k] = i.dataset.val !== undefined && i.dataset.money ? i.dataset.val : i.value; });
         return N.busy(btn, 'Menyimpan…', async () => { const r = await api('adminSaveSettings', { values: values }); if (r.success) { A.patchBoot({ settings: r.data.settings, toko: r.data.toko }); toast('Pengaturan disimpan.', 'ok'); } else gagal(r); return r; });
       };
       const seg = (k, opts, cur) => '<div class="seg" role="radiogroup" data-seg="' + k + '">' + opts.map((o) => '<button type="button" role="radio" aria-checked="' + (cur === o[0]) + '" class="' + (cur === o[0] ? 'on' : '') + '" data-act="seg" data-k="' + k + '" data-v="' + o[0] + '">' + o[1] + '</button>').join('') + '</div><input type="hidden" data-k="' + k + '" value="' + esc(cur) + '">';
