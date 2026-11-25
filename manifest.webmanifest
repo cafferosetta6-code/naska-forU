@@ -1,0 +1,12 @@
+{
+  "name": "Naska",
+  "short_name": "Naska",
+  "description": "Pemesanan kopi gedung LIPIA",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F0F9FF",
+  "theme_color": "#5CC8FF",
+  "icons": [ { "src": "img/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" } ]
+}

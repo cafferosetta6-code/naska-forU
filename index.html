@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Naska — Kopi siap, tinggal ambil</title>
+  <meta name="description" content="Pesan kopi online untuk mahasiswa dan staf gedung LIPIA. Pilih menu, bayar, ambil atau diantar gratis ke kelas.">
+  <meta name="theme-color" content="#5CC8FF">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="icon" href="img/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/tailwind.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <noscript><p style="padding:2rem;font-family:sans-serif">Aplikasi ini membutuhkan JavaScript. Aktifkan JavaScript di browser kamu.</p></noscript>
+  <div id="splash" class="fixed inset-0 z-[90] grid place-items-center sky-hero text-white" role="status" aria-label="Memuat">
+    <div class="text-center animate-pop"><div class="mx-auto mb-4 grid size-20 place-items-center rounded-[28px] bg-white/25 backdrop-blur"><svg viewBox="0 0 24 24" class="size-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2M14 2v2M6 2v2"/><path d="M5 8h12v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/></svg></div><p class="font-display text-2xl font-bold" id="splash-name">Naska</p><p class="mt-1 text-sm text-white/85">Menyiapkan kopi…</p></div>
+  </div>
+  <div id="root">
+    <div id="shell-buyer" hidden></div>
+    <div id="shell-admin" hidden></div>
+    <div id="shell-pos" hidden></div>
+  </div>
+  <div id="toasts" class="pointer-events-none fixed inset-x-0 bottom-24 z-[80] mx-auto flex w-full max-w-md flex-col items-center gap-2 px-4 lg:bottom-8" role="status" aria-live="polite"></div>
+  <div id="netbar" hidden class="fixed inset-x-0 top-0 z-[85] bg-warn-bg py-2 text-center text-sm font-semibold text-warn">Tidak ada koneksi internet. Perubahan akan dicoba lagi saat online.</div>
+  <script src="js/config.js"></script>
+  <script src="js/core.js" defer></script>
+  <script src="js/buyer.js" defer></script>
+</body>
+</html>
