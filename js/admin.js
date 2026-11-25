@@ -125,6 +125,10 @@
   }
   async function refreshOrders() {
     const r = await api('adminListOrders', { scope: 'aktif' }, { silent: true });
+    if (r.success && A.boot && r.data.orders.some((o) => o.id_metode && !(A.boot.metode || []).some((m) => m.id_metode === o.id_metode))) {   // ada pesanan dengan metode yang belum dikenal sesi ini → muat ulang daftar master
+      const kunci = r.data.orders.map((o) => o.id_metode).join(',');
+      if (A.metodeSync !== kunci) { A.metodeSync = kunci; api('adminBootstrap', {}, { silent: true }).then((b) => { if (b.success) A.patchBoot({ metode: b.data.metode, lokasi: b.data.lokasi, menu: b.data.menu }); }); }
+    }
     if (r.success) { A.orders = r.data.orders; A.hari = r.data.server.tanggal; A.latest = A.orders.reduce((m, o) => (o.diperbarui_pada > m ? o.diperbarui_pada : m), A.latest); if (A.boot) seedCache(); const p = A.pages.antrian; p && p.repaint && p.repaint(); const q = A.pages.pesanan; q && q.onOrders && q.onOrders(); }
     return r;
   }
@@ -158,9 +162,11 @@
     if (!r) return; if (r.success) { applyOrder(r.data.order); toast(o.kode + ' → ' + tujuan, 'ok', 1800); } else if (r.code !== 'NET') { toast(r.message, 'bad', 4000); refreshOrders(); }
   }
   function bukaBayar(kode) {
-    const o = findOrder(kode); if (!o) return; const M = A.metodeAktif();
+    const o = findOrder(kode); if (!o) return; const M = A.metodeAktif().slice();
+    // metode yang dipilih pembeli SELALU jadi pilihan awal, walau daftar metode di sesi admin ini belum memuatnya (diaktifkan dari perangkat lain / sudah dinonaktifkan)
+    if (o.id_metode && !M.some((m) => m.id_metode === o.id_metode)) M.unshift({ id_metode: o.id_metode, nama_tampil: o.metode_nama || (o.metode && o.metode.nama_tampil) || o.id_metode, tipe: o.metode_tipe || (o.metode && o.metode.tipe) || '' });
     if (!M.length) return toast('Belum ada metode pembayaran aktif.', 'warn');
-    const cur = o.id_metode && M.some((m) => m.id_metode === o.id_metode) ? o.id_metode : M[0].id_metode, lapak = !!o.serah_langsung;
+    const cur = o.id_metode || M[0].id_metode, lapak = !!o.serah_langsung;
     const m = modal.open({ title: (lapak ? 'Paid · ' : 'Tandai lunas · ') + o.kode, size: 'center', body: '<div class="grid gap-4 p-5"><div class="flex items-center justify-between rounded-2xl bg-tint p-4"><span class="text-sm font-semibold text-muted">Total tagihan</span><span class="font-display text-2xl font-extrabold text-deep tnum">' + rp(o.total) + '</span></div>' +
       A.fld('Dibayar dengan', '<select id="by-m" class="input">' + M.map((x) => '<option value="' + esc(x.id_metode) + '"' + (x.id_metode === cur ? ' selected' : '') + '>' + esc(x.nama_tampil) + ' · ' + esc(x.tipe) + '</option>').join('') + '</select>', 'Pastikan dana sudah masuk di rekening / e-wallet, atau uang tunai sudah diterima.', 'by-m') +
       (lapak ? '<p class="rounded-2xl bg-tint p-3 text-sm text-deep">Setelah dikonfirmasi, pesanan langsung <b>Selesai</b>: produk diserahkan ke pembeli di lapak.</p>' : '') + '</div>',
