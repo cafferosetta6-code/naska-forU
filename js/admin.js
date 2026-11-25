@@ -135,7 +135,7 @@
   const flowOf = (o) => (o.cara_terima === 'Antar' ? ['Baru', 'Diproses', 'Siap', 'Diantar', 'Selesai'] : ['Baru', 'Diproses', 'Siap', 'Selesai']);
   const NEXT_LABEL = { Diproses: 'Proses', Siap: 'Tandai Siap', Diantar: 'Antar Sekarang', Selesai: 'Selesaikan' };
   const tertutup = (o) => o.status_order === 'Batal' || o.status_bayar === 'Kedaluwarsa';
-  const nextOf = (o) => { if (tertutup(o) || o.status_order === 'Selesai') return null; const f = flowOf(o), i = f.indexOf(o.status_order); return i > -1 ? f[i + 1] : null; };
+  const nextOf = (o) => { if (tertutup(o) || o.status_order === 'Selesai' || (o.serah_langsung && o.status_bayar !== 'Lunas')) return null; const f = flowOf(o), i = f.indexOf(o.status_order); return i > -1 ? f[i + 1] : null; };
   const perluBayar = (o) => !tertutup(o) && (o.status_bayar === 'Menunggu Konfirmasi' || (o.status_bayar === 'Belum Bayar' && o.metode_tipe !== 'Cash'));
   const ringkasItem = (o) => (o.items || []).map((i) => i.qty + '× ' + i.nama).join(', ');
   A.nextOf = nextOf; A.tertutup = tertutup;
@@ -161,13 +161,25 @@
     const o = findOrder(kode); if (!o) return; const M = A.metodeAktif();
     if (!M.length) return toast('Belum ada metode pembayaran aktif.', 'warn');
     const cur = o.id_metode && M.some((m) => m.id_metode === o.id_metode) ? o.id_metode : M[0].id_metode;
-    const m = modal.open({ title: 'Tandai lunas · ' + o.kode, size: 'center', body: '<div class="grid gap-4 p-5"><div class="flex items-center justify-between rounded-2xl bg-tint p-4"><span class="text-sm font-semibold text-muted">Total tagihan</span><span class="font-display text-2xl font-extrabold text-deep tnum">' + rp(o.total) + '</span></div>' +
-      A.fld('Dibayar dengan', '<select id="by-m" class="input">' + M.map((x) => '<option value="' + esc(x.id_metode) + '"' + (x.id_metode === cur ? ' selected' : '') + '>' + esc(x.nama_tampil) + ' · ' + esc(x.tipe) + '</option>').join('') + '</select>', 'Pastikan dana sudah masuk atau bukti bayar sudah dicek.', 'by-m') + '</div>',
-      footer: '<div class="flex gap-3"><button class="btn btn-soft flex-1" data-close>Batal</button><button class="btn btn-primary flex-1" data-ok>Konfirmasi Lunas</button></div>' });
-    $('[data-ok]', m.footer).addEventListener('click', async (e) => {
-      const r = await N.busy(e.currentTarget, 'Menyimpan…', () => api('adminSetPaid', { kode: kode, id_metode: $('#by-m', m.el).value }));
-      if (!r) return; if (r.success) { m.close(); applyOrder(r.data.order); toast('Pesanan ditandai lunas.', 'ok'); } else if (r.code !== 'NET') toast(r.message, 'bad', 4000);
-    });
+    const perluPin = o.sumber === 'Web', pinOk = !!((A.boot && A.boot.akun) || {}).pin_diatur, lapak = !!o.serah_langsung;
+    const pinBox = !perluPin ? '' : pinOk
+      ? A.fld('PIN konfirmasi', '<input id="by-pin" class="input text-center font-display text-2xl tracking-[.5em] tnum" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="••••">', 'PIN yang kamu atur di Pengaturan → Akun Saya.', 'by-pin')
+      : '<div class="flex gap-3 rounded-2xl bg-warn-bg p-4 text-warn">' + ic('alert', 'size-6 shrink-0') + '<div><p class="font-bold">PIN belum diatur</p><p class="text-sm">Atur PIN konfirmasi dulu di Pengaturan → Akun Saya, baru pesanan online bisa ditandai lunas.</p></div></div>';
+    const m = modal.open({ title: (lapak ? 'Paid · ' : 'Tandai lunas · ') + o.kode, size: 'center', body: '<div class="grid gap-4 p-5"><div class="flex items-center justify-between rounded-2xl bg-tint p-4"><span class="text-sm font-semibold text-muted">Total tagihan</span><span class="font-display text-2xl font-extrabold text-deep tnum">' + rp(o.total) + '</span></div>' +
+      A.fld('Dibayar dengan', '<select id="by-m" class="input">' + M.map((x) => '<option value="' + esc(x.id_metode) + '"' + (x.id_metode === cur ? ' selected' : '') + '>' + esc(x.nama_tampil) + ' · ' + esc(x.tipe) + '</option>').join('') + '</select>', 'Pastikan dana sudah masuk di rekening / e-wallet, atau uang tunai sudah diterima.', 'by-m') +
+      (lapak ? '<p class="rounded-2xl bg-tint p-3 text-sm text-deep">Setelah dikonfirmasi, pesanan langsung <b>Selesai</b>: produk diserahkan ke pembeli di lapak.</p>' : '') + pinBox + '</div>',
+      footer: '<div class="flex gap-3"><button class="btn btn-soft flex-1" data-close>Batal</button><button class="btn btn-primary flex-1" data-ok>' + (perluPin && !pinOk ? 'Atur PIN' : lapak ? 'Paid & Serahkan' : 'Konfirmasi Lunas') + '</button></div>' });
+    const ok = $('[data-ok]', m.footer), pin = $('#by-pin', m.el);
+    const kirim = async () => {
+      if (perluPin && !pinOk) { m.close(); return N.go('#/admin/pengaturan/akun'); }
+      if (pin && !/^\d{4,6}$/.test(pin.value)) { toast('Masukkan PIN 4–6 digit.', 'warn'); return pin.focus(); }
+      const r = await N.busy(ok, 'Menyimpan…', () => api('adminSetPaid', { kode: kode, id_metode: $('#by-m', m.el).value, pin: pin ? pin.value : '' }));
+      if (!r) return;
+      if (r.success) { m.close(); applyOrder(r.data.order); toast(lapak ? o.kode + ' lunas dan diserahkan.' : 'Pesanan ditandai lunas.', 'ok'); }
+      else if (r.code !== 'NET') { toast(r.message, 'bad', 4500); if (pin) { pin.value = ''; pin.focus(); } }
+    };
+    ok.addEventListener('click', kirim);
+    if (pin) { pin.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); kirim(); } }); setTimeout(() => pin.focus(), 60); }
   }
   function bukaBatal(kode) {
     const o = findOrder(kode); if (!o) return; const pre = ['Stok habis', 'Pembeli membatalkan', 'Pembayaran tidak masuk', 'Pesanan ganda'];
@@ -191,7 +203,7 @@
   function orderActions(o, lengkap) {
     if (tertutup(o)) return '';
     const n = nextOf(o), bayar = o.status_bayar !== 'Lunas', btn = [];
-    if (bayar) btn.push('<button class="btn btn-sun btn-sm" data-act="pay" data-k="' + o.kode + '">' + ic('wallet', 'size-4') + (o.metode_tipe === 'Cash' ? 'Terima Tunai' : 'Tandai Lunas') + '</button>');
+    if (bayar) btn.push('<button class="btn btn-sun btn-sm" data-act="pay" data-k="' + o.kode + '">' + ic('wallet', 'size-4') + (o.metode_tipe === 'Cash' ? 'Terima Tunai' : o.serah_langsung ? 'Paid' : 'Tandai Lunas') + '</button>');
     if (n) btn.push('<button class="btn btn-primary btn-sm" data-act="next" data-k="' + o.kode + '"' + (n === 'Selesai' && bayar ? ' aria-disabled="true" title="Tandai lunas dulu"' : '') + '>' + NEXT_LABEL[n] + ic('right', 'size-4') + '</button>');
     if (lengkap) { if (o.wa) btn.push('<button class="btn btn-wa btn-sm" data-act="wa" data-k="' + o.kode + '">' + ic('wa', 'size-4') + 'WhatsApp</button>'); if (o.status_order !== 'Selesai') btn.push('<button class="btn btn-ghost btn-sm !text-bad" data-act="cancel" data-k="' + o.kode + '">' + ic('x', 'size-4') + 'Batalkan</button>'); }
     return btn.join('');
@@ -249,6 +261,7 @@
         '<p class="mt-0.5 truncate font-semibold text-deep">' + esc(o.nama) + '</p><p class="mt-0.5 line-clamp-2 text-sm text-muted">' + esc(ringkasItem(o)) + '</p>' +
         (o.catatan ? '<p class="mt-1 flex gap-1.5 text-xs font-semibold text-warn">' + ic('info', 'mt-0.5 size-3.5 shrink-0') + esc(o.catatan) + '</p>' : '') + '</button>' +
         '<div class="text-right"><p class="font-display text-lg font-extrabold text-deep tnum">' + rp(o.total) + '</p><div class="mt-1 flex flex-col items-end gap-1">' + N.pillBayar(o.status_bayar) + N.pillOrder(o.status_order) + '</div></div></div>' +
+        (o.serah_langsung && o.status_bayar !== 'Lunas' && !tertutup(o) ? '<p class="mt-2 flex items-center gap-1.5 text-xs font-bold text-ocean">' + ic('store', 'size-3.5') + 'Ambil di lapak · serahkan setelah Paid</p>' : '') +
         (o.tipe === 'Preorder' ? '<p class="mt-2 flex items-center gap-1.5 text-xs font-bold text-warn">' + ic('calendar', 'size-3.5') + 'Preorder ' + esc(tgl(o.tanggal_target)) + '</p>' : '') +
         '<div class="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-3">' + orderActions(o, false) + (o.wa ? '<button class="btn btn-wa btn-sm" data-act="wa" data-k="' + o.kode + '" aria-label="WhatsApp">' + ic('wa', 'size-4') + '</button>' : '') + '<button class="btn btn-ghost btn-sm ml-auto" data-act="detail" data-k="' + o.kode + '">Detail' + ic('right', 'size-4') + '</button></div></article>';
     }

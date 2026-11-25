@@ -213,7 +213,7 @@
       const L = cartLines();
       return '<div class="card p-5"><h2 class="font-display text-lg font-bold text-deep">Ringkasan pesanan</h2><div class="mt-1 flex items-center gap-2 text-sm"><span class="pill ' + (S.cart.tipe === 'Preorder' ? 'pill-sun' : 'pill-info') + '">' + esc(S.cart.tipe) + '</span>' + (S.cart.tipe === 'Preorder' ? '<span class="font-semibold text-deep">' + esc(tgl(S.cart.tanggal)) + '</span>' : '') + '</div><ul class="mt-3 divide-y divide-line">' +
         L.map((l) => '<li class="flex items-center justify-between gap-3 py-2.5 text-sm"><span class="min-w-0"><span class="font-semibold text-deep">' + l.qty + '×</span> ' + esc(l.m.nama) + '</span><span class="font-semibold tnum">' + rp(l.m.harga * l.qty) + '</span></li>').join('') + '</ul>' +
-        '<div class="mt-2 flex justify-between text-sm text-muted"><span>Ongkos antar</span><span class="font-bold text-ok">Gratis</span></div><div class="mt-3 flex items-center justify-between border-t border-dashed border-line pt-3"><span class="font-semibold text-muted">Total</span><span class="font-display text-2xl font-extrabold text-deep tnum">' + rp(cartTotal()) + '</span></div></div>';
+        (F.cara === 'Antar' ? '<div class="mt-2 flex justify-between text-sm text-muted"><span>Ongkos antar</span><span class="font-bold text-ok">Gratis</span></div>' : '') + '<div class="mt-3 flex items-center justify-between border-t border-dashed border-line pt-3"><span class="font-semibold text-muted">Total</span><span class="font-display text-2xl font-extrabold text-deep tnum">' + rp(cartTotal()) + '</span></div></div>';
     }
     const field = (k, label, inner) => '<div><label class="label" for="co-' + k + '">' + label + '</label>' + inner + (F.err[k] ? '<p class="err-text" role="alert">' + esc(F.err[k]) + '</p>' : '') + '</div>';
     function lokasiSel() {
@@ -228,7 +228,7 @@
     function metodeCards() {
       const M = (S.boot && S.boot.metode) || [];
       if (!M.length) return '<div class="rounded-2xl bg-warn-bg p-4 text-sm text-warn">Belum ada metode pembayaran aktif. Hubungi penjual.</div>';
-      return '<div class="grid gap-3" role="radiogroup" aria-label="Metode pembayaran">' + M.map((m) => '<button type="button" role="radio" aria-checked="' + (F.metode === m.id_metode) + '" data-act="metode" data-id="' + esc(m.id_metode) + '" class="flex min-h-[4.5rem] items-center gap-4 rounded-[20px] border-2 p-3.5 text-left transition active:scale-[.99] ' + (F.metode === m.id_metode ? 'border-ocean bg-tint' : 'border-line bg-white hover:bg-tint/60') + '"><span class="grid size-12 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-white p-1 text-ocean">' + (m.logo_url ? '<img src="' + esc(m.logo_url) + '" alt="" class="size-full object-contain" data-foto>' : ic(tipeIcon(m.tipe), 'size-6')) + '</span><span class="min-w-0 flex-1"><span class="block truncate font-bold text-deep">' + esc(m.nama_tampil) + '</span><span class="block text-xs text-muted">' + esc(m.tipe) + (m.tipe === 'Cash' ? ' · bayar saat terima' : '') + '</span></span><span class="grid size-6 place-items-center rounded-full border-2 ' + (F.metode === m.id_metode ? 'border-ocean bg-ocean text-white' : 'border-line') + '">' + (F.metode === m.id_metode ? ic('check', 'size-3.5') : '') + '</span></button>').join('') + '</div>';
+      return '<div class="grid gap-3" role="radiogroup" aria-label="Metode pembayaran">' + M.map((m) => '<button type="button" role="radio" aria-checked="' + (F.metode === m.id_metode) + '" data-act="metode" data-id="' + esc(m.id_metode) + '" class="flex min-h-[4.5rem] items-center gap-4 rounded-[20px] border-2 p-3.5 text-left transition active:scale-[.99] ' + (F.metode === m.id_metode ? 'border-ocean bg-tint' : 'border-line bg-white hover:bg-tint/60') + '"><span class="grid size-12 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-white p-1 text-ocean">' + (m.logo_url ? '<img src="' + esc(m.logo_url) + '" alt="" class="size-full object-contain" data-foto>' : ic(tipeIcon(m.tipe), 'size-6')) + '</span><span class="min-w-0 flex-1"><span class="block truncate font-bold text-deep">' + esc(m.nama_tampil) + '</span><span class="block text-xs text-muted">' + esc(m.tipe) + (m.tipe === 'Cash' ? (F.cara === 'Ambil' ? ' · bayar di lapak' : ' · bayar saat terima') : '') + '</span></span><span class="grid size-6 place-items-center rounded-full border-2 ' + (F.metode === m.id_metode ? 'border-ocean bg-ocean text-white' : 'border-line') + '">' + (F.metode === m.id_metode ? ic('check', 'size-3.5') : '') + '</span></button>').join('') + '</div>';
     }
     function paint() {
       if (!S.boot) { el.innerHTML = '<div class="skel mt-6 h-96"></div>'; return; }
@@ -240,18 +240,19 @@
         '<div class="mt-5 grid gap-6 lg:grid-cols-[1fr_22rem]"><div class="card p-5 sm:p-6" data-form>' + (s1 ? step1() : step2()) + '</div><aside class="lg:sticky lg:top-24 lg:self-start">' + summary() + '</aside></div></div>';
     }
     function step1() {
-      const antar = F.cara === 'Antar';
+      const antar = F.cara === 'Antar', lapak = F.cara === 'Ambil' && S.cart.tipe === 'Langsung';
       return '<div class="grid gap-4">' + field('nama', 'Nama', '<input id="co-nama" class="input ' + (F.err.nama ? 'err' : '') + '" data-f="nama" autocomplete="name" placeholder="Nama kamu" value="' + esc(F.nama) + '" maxlength="60">') +
         field('wa', 'Nomor WhatsApp', '<input id="co-wa" class="input ' + (F.err.wa ? 'err' : '') + '" data-f="wa" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx" value="' + esc(F.wa) + '" maxlength="20"><p class="hint">Dipakai penjual untuk konfirmasi pesanan.</p>') +
         '<div><span class="label">Cara terima</span><div class="grid grid-cols-2 gap-3" role="radiogroup">' +
         ['Ambil', 'Antar'].map((c) => '<button type="button" role="radio" aria-checked="' + (F.cara === c) + '" data-act="cara" data-v="' + c + '" class="flex min-h-16 items-center gap-3 rounded-[20px] border-2 p-3 text-left transition ' + (F.cara === c ? 'border-ocean bg-tint' : 'border-line hover:bg-tint/60') + '"><span class="grid size-10 place-items-center rounded-xl ' + (F.cara === c ? 'bg-ocean text-white' : 'bg-line text-deep') + '">' + ic(c === 'Ambil' ? 'store' : 'truck', 'size-5') + '</span><span><span class="block font-bold text-deep">' + (c === 'Ambil' ? 'Ambil di lapak' : 'Antar ke kelas') + '</span><span class="block text-xs ' + (c === 'Antar' ? 'font-bold text-ok' : 'text-muted') + '">' + (c === 'Ambil' ? 'Tanpa biaya' : 'Gratis') + '</span></span></button>').join('') + '</div></div>' +
+        (lapak ? '<div class="flex gap-3 rounded-2xl bg-tint p-3.5 text-sm text-deep">' + ic('store', 'size-5 shrink-0 text-ocean') + '<p><b>Bayar di lapak.</b> Produk sudah ada dan langsung diserahkan setelah penjual memastikan pembayaran masuk, tanpa menunggu disiapkan.</p></div>' : '') +
         (antar ? '<div class="rounded-[20px] bg-tint/70 p-4"><p class="mb-3 flex items-center gap-2 text-sm font-bold text-deep">' + ic('pin', 'size-4') + 'Lokasi pengantaran</p>' + lokasiSel() +
           '<div class="mt-3">' + field('pref', 'Preferensi waktu antar', '<select id="co-pref" class="input" data-f="pref">' + PREF.map((p) => '<option' + (p === F.pref ? ' selected' : '') + '>' + p + '</option>').join('') + '</select><p class="hint">Hanya informasi untuk pengantar, bukan jadwal pasti.</p>') + '</div></div>' : '') +
         field('catatan', 'Catatan (opsional)', '<textarea id="co-catatan" class="input" data-f="catatan" maxlength="200" placeholder="Contoh: less sugar, duduk di baris belakang">' + esc(F.catatan) + '</textarea>') +
         '<button class="btn btn-primary btn-lg w-full" data-act="lanjut">Lanjut ke pembayaran' + ic('right', 'size-5') + '</button></div>';
     }
     function step2() {
-      return '<div class="grid gap-5"><div><h2 class="font-display text-xl font-bold text-deep">Pilih metode pembayaran</h2><p class="text-sm text-muted">Detail pembayaran muncul di invoice setelah pesanan dibuat.</p></div>' + metodeCards() + (F.err.metode ? '<p class="err-text" role="alert">' + esc(F.err.metode) + '</p>' : '') +
+      return '<div class="grid gap-5"><div><h2 class="font-display text-xl font-bold text-deep">Pilih metode pembayaran</h2><p class="text-sm text-muted">' + (F.cara === 'Ambil' && S.cart.tipe === 'Langsung' ? 'Setelah pesanan dibuat, kode pembayaran langsung tampil. Pesananmu diserahkan begitu penjual memastikan dana masuk.' : 'Detail pembayaran muncul di invoice setelah pesanan dibuat.') + '</p></div>' + metodeCards() + (F.err.metode ? '<p class="err-text" role="alert">' + esc(F.err.metode) + '</p>' : '') +
         '<div class="flex gap-3"><button class="btn btn-soft" data-act="balik">' + ic('left', 'size-4') + 'Kembali</button><button class="btn btn-primary btn-lg flex-1" data-act="buat">Buat Pesanan · ' + rp(cartTotal()) + '</button></div></div>';
     }
     function validasi1() {
@@ -305,7 +306,7 @@
   function pageInvoice() {
     let el, cur = null, timer = null, kode = '', key = '', stopCd = null;
     const final = (o) => o.status_order === 'Selesai' || o.status_order === 'Batal' || o.status_bayar === 'Kedaluwarsa';
-    const TL = ['Baru', 'Diproses', 'Siap', 'Selesai'];
+    const TL = ['Baru', 'Diproses', 'Siap', 'Selesai'], TLL = ['Dipesan', 'Dibayar', 'Diserahkan'];
     function paymentBlock(o) {
       const m = o.metode; if (!m) return '';
       const nominal = '<div class="flex items-center justify-between gap-3 rounded-2xl bg-tint p-3.5"><span class="text-sm font-semibold text-muted">Nominal bayar</span><span class="flex items-center gap-2"><span class="font-display text-xl font-extrabold text-deep tnum">' + rp(o.total) + '</span><button class="icon-btn !size-9" data-act="salin" data-v="' + o.total + '" aria-label="Salin nominal">' + ic('copy', 'size-4') + '</button></span></div>';
@@ -317,20 +318,24 @@
     }
     function progress(o) {
       if (o.status_order === 'Batal') return '';
-      const idx = Math.max(0, TL.indexOf(o.status_order === 'Diantar' ? 'Siap' : o.status_order));
-      const label = { Baru: 'Diterima', Diproses: 'Diproses', Siap: o.cara_terima === 'Antar' ? (o.status_order === 'Diantar' ? 'Diantar' : 'Siap') : 'Siap diambil', Selesai: 'Selesai' };
-      return '<ol class="flex items-start" aria-label="Progres pesanan">' + TL.map((s, i) => '<li class="flex flex-1 flex-col items-center gap-1.5 text-center"><div class="flex w-full items-center"><span class="h-0.5 flex-1 ' + (i === 0 ? 'opacity-0' : i <= idx ? 'bg-ocean' : 'bg-line') + '"></span><span class="grid size-8 place-items-center rounded-full text-xs font-extrabold ' + (i <= idx ? 'bg-ocean text-white' : 'bg-line text-muted') + '">' + (i < idx ? ic('check', 'size-4') : i + 1) + '</span><span class="h-0.5 flex-1 ' + (i === TL.length - 1 ? 'opacity-0' : i < idx ? 'bg-ocean' : 'bg-line') + '"></span></div><span class="text-[11px] font-bold ' + (i <= idx ? 'text-deep' : 'text-muted') + '">' + label[s] + '</span></li>').join('') + '</ol>';
+      const lapak = !!o.serah_langsung, steps = lapak ? TLL : TL;
+      const idx = lapak ? (o.status_order === 'Selesai' ? 3 : o.status_bayar === 'Lunas' ? 2 : 1) : Math.max(0, TL.indexOf(o.status_order === 'Diantar' ? 'Siap' : o.status_order));
+      const label = lapak ? { Dipesan: 'Dipesan', Dibayar: 'Dibayar', Diserahkan: 'Diserahkan' } : { Baru: 'Diterima', Diproses: 'Diproses', Siap: o.cara_terima === 'Antar' ? (o.status_order === 'Diantar' ? 'Diantar' : 'Siap') : 'Siap diambil', Selesai: 'Selesai' };
+      return '<ol class="flex items-start" aria-label="Progres pesanan">' + steps.map((s, i) => '<li class="flex flex-1 flex-col items-center gap-1.5 text-center"><div class="flex w-full items-center"><span class="h-0.5 flex-1 ' + (i === 0 ? 'opacity-0' : i <= idx ? 'bg-ocean' : 'bg-line') + '"></span><span class="grid size-8 place-items-center rounded-full text-xs font-extrabold ' + (i <= idx ? 'bg-ocean text-white' : 'bg-line text-muted') + '">' + (i < idx ? ic('check', 'size-4') : i + 1) + '</span><span class="h-0.5 flex-1 ' + (i === steps.length - 1 ? 'opacity-0' : i < idx ? 'bg-ocean' : 'bg-line') + '"></span></div><span class="text-[11px] font-bold ' + (i <= idx ? 'text-deep' : 'text-muted') + '">' + label[s] + '</span></li>').join('') + '</ol>';
     }
     function render(o) {
       cur = o; N.Clock.sync(o.now_ms);
       const cash = o.metode && o.metode.tipe === 'Cash', tertutup = o.status_order === 'Batal' || o.status_bayar === 'Kedaluwarsa';
       const bb = o.status_bayar, tungguBayar = !tertutup && !cash && bb === 'Belum Bayar';
+      const lapak = !!o.serah_langsung, selesai = o.status_order === 'Selesai';
       const banner = o.status_bayar === 'Kedaluwarsa' ? '<div class="mb-4 flex gap-3 rounded-2xl bg-slate-100 p-4 text-slate-700">' + ic('clock', 'size-6 shrink-0') + '<div><p class="font-bold">Pesanan kedaluwarsa</p><p class="text-sm">Waktu pembayaran habis dan stok sudah dikembalikan. Silakan buat pesanan baru.</p></div></div>'
-        : o.status_order === 'Batal' ? '<div class="mb-4 flex gap-3 rounded-2xl bg-bad-bg p-4 text-bad">' + ic('x', 'size-6 shrink-0') + '<div><p class="font-bold">Pesanan dibatalkan</p><p class="text-sm">' + esc(o.alasan_batal || 'Pesanan dibatalkan oleh penjual.') + '</p></div></div>' : '';
-      const info = !tertutup && bb === 'Menunggu Konfirmasi' ? '<div class="flex gap-3 rounded-2xl bg-tint p-4 text-deep">' + ic('clock', 'size-6 shrink-0 text-ocean') + '<div class="flex-1"><p class="font-bold">Menunggu konfirmasi admin</p><p class="text-sm text-muted">Pastikan bukti bayar sudah terkirim di WhatsApp. Halaman ini otomatis diperbarui.</p><button class="btn btn-wa btn-sm mt-3" data-act="wa-bayar">' + ic('wa', 'size-4') + 'Buka WhatsApp lagi</button></div></div>' : '';
+        : o.status_order === 'Batal' ? '<div class="mb-4 flex gap-3 rounded-2xl bg-bad-bg p-4 text-bad">' + ic('x', 'size-6 shrink-0') + '<div><p class="font-bold">Pesanan dibatalkan</p><p class="text-sm">' + esc(o.alasan_batal || 'Pesanan dibatalkan oleh penjual.') + '</p></div></div>'
+        : lapak && selesai ? '<div class="mb-4 flex gap-3 rounded-2xl bg-ok-bg p-4 text-ok">' + ic('check', 'size-6 shrink-0') + '<div><p class="font-bold">Pembayaran diterima</p><p class="text-sm">Pesananmu sudah diserahkan. Terima kasih, selamat menikmati!</p></div></div>' : '';
+      const info = !tertutup && bb === 'Menunggu Konfirmasi' ? '<div class="flex gap-3 rounded-2xl bg-tint p-4 text-deep">' + ic('clock', 'size-6 shrink-0 text-ocean') + '<div class="flex-1"><p class="font-bold">Menunggu konfirmasi admin</p><p class="text-sm text-muted">' + (lapak ? 'Penjual sedang memastikan dana masuk. Tunjukkan layar ini ke penjual. Halaman ini otomatis diperbarui.</p></div></div>' : 'Pastikan bukti bayar sudah terkirim di WhatsApp. Halaman ini otomatis diperbarui.</p><button class="btn btn-wa btn-sm mt-3" data-act="wa-bayar">' + ic('wa', 'size-4') + 'Buka WhatsApp lagi</button></div></div>') : '';
+      const kasLapak = lapak && cash && !tertutup && !selesai ? '<div class="flex gap-3 rounded-2xl bg-tint p-4 text-deep">' + ic('store', 'size-6 shrink-0 text-ocean') + '<div><p class="font-bold">Bayar tunai di lapak</p><p class="text-sm text-muted">Serahkan uang ke penjual dan sebutkan kode ' + esc(o.kode) + '. Pesananmu langsung diserahkan setelah dibayar.</p></div></div>' : '';
       const wa = tungguBayar ? '<div class="grid gap-3"><div class="flex items-center justify-between rounded-2xl bg-warn-bg px-4 py-3 text-warn"><span class="flex items-center gap-2 text-sm font-bold">' + ic('clock', 'size-5') + 'Selesaikan pembayaran dalam</span><span class="font-display text-2xl font-extrabold tnum" data-cd>--:--</span></div>' +
-        '<ol class="grid gap-1.5 rounded-2xl bg-tint p-4 text-sm text-deep"><li><b>1.</b> Bayar sesuai nominal di atas.</li><li><b>2.</b> Tekan tombol hijau, kirim bukti bayar di WhatsApp.</li><li><b>3.</b> Tunggu admin menandai pesananmu lunas.</li></ol>' +
-        '<button class="btn btn-wa btn-lg w-full" data-act="wa-bayar">' + ic('wa', 'size-5') + 'Konfirmasi Pembayaran via WhatsApp</button>' +
+        (lapak ? '<ol class="grid gap-1.5 rounded-2xl bg-tint p-4 text-sm text-deep"><li><b>1.</b> Bayar sesuai nominal di atas.</li><li><b>2.</b> Tekan "Saya sudah bayar" agar penjual tahu.</li><li><b>3.</b> Penjual memastikan dana masuk, lalu pesananmu langsung diserahkan.</li></ol>' : '<ol class="grid gap-1.5 rounded-2xl bg-tint p-4 text-sm text-deep"><li><b>1.</b> Bayar sesuai nominal di atas.</li><li><b>2.</b> Tekan tombol hijau, kirim bukti bayar di WhatsApp.</li><li><b>3.</b> Tunggu admin menandai pesananmu lunas.</li></ol>') +
+        (lapak ? '<button class="btn btn-primary btn-lg w-full" data-act="sudah-bayar">' + ic('check', 'size-5') + 'Saya sudah bayar</button>' : '<button class="btn btn-wa btn-lg w-full" data-act="wa-bayar">' + ic('wa', 'size-5') + 'Konfirmasi Pembayaran via WhatsApp</button>') +
         '<button class="btn btn-soft w-full" data-act="alt">' + ic('qr', 'size-4') + (o.metode && o.metode.tipe === 'QRIS' ? 'QR tidak terbaca? Bayar dengan cara lain' : 'Ganti cara pembayaran') + '</button></div>' : '';
       const lok = o.cara_terima === 'Antar' ? esc(o.lokasi) + '<span class="block text-xs text-muted">' + esc(o.pref_antar) + '</span>' : 'Ambil di lapak';
       const kv = (k, v) => '<div><dt class="text-xs font-semibold text-muted">' + k + '</dt><dd class="mt-0.5 font-semibold text-deep">' + v + '</dd></div>';
@@ -342,7 +347,7 @@
         '<div class="ticket-cut"></div>' +
         '<table class="tbl"><thead><tr><th class="!px-0">Item</th><th class="text-center">Qty</th><th class="text-right !px-0">Subtotal</th></tr></thead><tbody>' + o.items.map((i) => '<tr><td class="!px-0"><p class="font-semibold text-deep">' + esc(i.nama) + '</p><p class="text-xs text-muted tnum">' + rp(i.harga) + '</p></td><td class="text-center tnum">' + i.qty + '</td><td class="!px-0 text-right font-semibold tnum">' + rp(i.subtotal) + '</td></tr>').join('') + '</tbody></table>' +
         '<div class="flex items-center justify-between"><span class="text-sm text-muted">Ongkos antar <b class="text-ok">Gratis</b></span><span class="font-display text-2xl font-extrabold text-deep tnum">' + rp(o.total) + '</span></div>' +
-        (tertutup ? '' : '<div class="ticket-cut"></div>' + paymentBlock(o) + wa + info) +
+        (tertutup || (lapak && bb === 'Lunas') ? '' : '<div class="ticket-cut"></div>' + paymentBlock(o) + wa + info + kasLapak) +
         '</div></article>' +
         '<div class="no-print mt-4 flex flex-wrap gap-3"><button class="btn btn-soft flex-1" data-act="cetak">' + ic('printer', 'size-4') + 'Cetak / Simpan PDF</button>' + (N.brand.wa ? '<button class="btn btn-soft flex-1" data-act="hubungi">' + ic('wa', 'size-4') + 'Hubungi Admin</button>' : '') + '</div>' +
         '<p class="no-print mt-5 text-center text-xs text-muted">' + esc(cfg().catatan_footer || '') + '</p></div>';
@@ -377,6 +382,10 @@
             if (r.success) { render(r.data.order); toast('Kirim bukti bayar di WhatsApp, lalu tunggu admin menandai lunas.', 'ok', 4500); } else if (r.code !== 'NET') { toast(r.message, 'bad', 4500); load(true); }
           }
         },
+        'sudah-bayar': async (t) => {
+          const r = await N.busy(t, 'Mengirim…', () => api('markWaSent', { kode: kode, key: key, via: 'lapak' }));
+          if (!r) return; if (r.success) { render(r.data.order); toast('Terima kasih! Tunjukkan layar ini ke penjual.', 'ok', 4000); } else if (r.code !== 'NET') { toast(r.message, 'bad', 4500); load(true); }
+        },
         alt: () => bukaAlt()
       });
     }
@@ -398,7 +407,7 @@
         const cache = Store.get('c:inv:' + kode, null); if (cache && !cur && key) render(cache.order);
         document.title = kode + ' — ' + N.brand.nama;
         ensureBoot(); load(true); clearInterval(timer);
-        timer = setInterval(() => { if (!document.hidden && cur && !final(cur)) load(); }, 20000);
+        let tick = 0; timer = setInterval(() => { tick++; if (!document.hidden && cur && !final(cur) && (cur.serah_langsung || tick % 3 === 0)) load(); }, 7000);   // ambil di lapak: cek tiap 7 dtk agar status lunas cepat terlihat
       },
       hide() { clearInterval(timer); stopCd && stopCd(); },
       resume() { load(); }
